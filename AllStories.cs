@@ -208,6 +208,46 @@ namespace JMCullenInteractiveStories
     }
     #endregion
 
+    public static class GetStoryCharacters
+    {
+        [FunctionName("StoryCharacters")]
+        public static async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req,
+            ExecutionContext executionContext)
+        {
+            Story data = await req.GetFromBody<Story>();
+            var results = CharacterRepository.CreateNew(executionContext, "StoryCharacters").GetAllForStory(data.PrimaryKey);
+            return (ActionResult)new OkObjectResult(new RequestResponse<Character>(results));
+        }
+    }
+
+    public class UpdateCharacter
+    {
+        [FunctionName("CharacterUpdate")]
+        public static async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = null)] HttpRequest req,
+            ExecutionContext executionContext)
+        {
+            try
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                if (string.IsNullOrEmpty(requestBody))
+                    return (ActionResult)new OkObjectResult(new RequestResponse<Character>(new RequestBodyEmptyException()));
+                Character data = JsonConvert.DeserializeObject<Character>(requestBody);
+
+                Character results = CharacterRepository.CreateNew(executionContext, "CharacterUpdate").AddOrUpdate(data);
+                if (results == null || results.PrimaryKey == 0)
+                    return (ActionResult)new OkObjectResult(new InsertRecordException(data.LastNameFirst));
+                else
+                    return (ActionResult)new OkObjectResult(new RequestResponse<Character>(results));
+            }
+            catch (Exception e)
+            {
+                return (ActionResult)new BadRequestObjectResult(new UpdateRecordException(typeof(Scene).Name));
+            }
+        }
+    }
+
     public static class Helpers
     {
         public async static Task<T> GetFromBody<T>(this HttpRequest req)
